@@ -13,6 +13,7 @@
 #include <sys/ioctl.h>
 #include <sys/kd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -26,9 +27,12 @@ static int  OpenTTYFd (const char* ttypath);
 static void OpenTTY (const char* ttypath);
 static void ResetTerminal (void);
 
+static pid_t LaunchShell (const struct account* acct);
+
 //----------------------------------------------------------------------
 
 static pid_t _pgrp = 0;
+static pid_t _shellpid = 0;
 
 //{{{ Signal handling --------------------------------------------------
 
@@ -91,49 +95,40 @@ static void ExitWithMessage (const char* msg)
     exit (EXIT_FAILURE);
 }
 
-#if 0
 //}}}-------------------------------------------------------------------
-//{{{ Shell
-
-static void LaunchShell (const char* username)
-{
-    struct passwd* pwn = getpwnam (username);
-    fprintf (stderr, "The user [%s,%hu,%hu] has been authenticated and `logged in'\n", username, pwn->pw_uid, pwn->pw_gid);
-
-    setuid (pwn->pw_uid);
-    setgid (pwn->pw_gid);
-    setsid();
-    setpgrp();
-
-    /* this is always a really bad thing for security! */
-    system("/bin/sh");
-}
-
-//}}}-------------------------------------------------------------------
-#endif
 
 int main (void)
 {
     char ttypath [16];
     ttyname_r (STDIN_FILENO, ttypath, sizeof(ttypath));
     InstallCleanupHandlers();
+#if 0
     InitEnvironment();
     OpenTTY (ttypath);
     ResetTerminal();
-#if 0
+#endif
     acclist_t al = ReadAccounts();
     ReadLastlog();
     char password [MAX_PW_LEN];
     unsigned ali = LoginBox (al, password);
     PamOpen();
-    const char* username = PamLogin();
-    LaunchShell (username);
+    if (!PamLogin (al[ali], password))
+	return (EXIT_FAILURE);
+    _shellpid = LaunchShell (al[ali]);
+
+    while (_shellpid) {
+	int chldstat = 0;
+	pid_t cpid = wait (&chldstat);
+	if (cpid == _shellpid)
+	    _shellpid = 0;
+    }
+
     PamLogout();
     PamClose();
-    time_t ltime = al[ali]->ltime;
-    printf ("Logging in user '%s', password '%s', lastlog %s", al[ali]->name, password, ctime(&ltime));
-#endif
-    return (0);
+
+    fchown (STDIN_FILENO, getuid(), getgid());
+
+    return (EXIT_SUCCESS);
 }
 
 static void InitEnvironment (void)
@@ -243,6 +238,41 @@ static void ResetTerminal (void)
 	ExitWithError ("tcsetattr");
 
     // Clear the screen; [r resets scroll region, [H homes cursor, [J erases
-    printf ("\e[r\e[H\e[J");
+    #define RESET_SCREEN_CMD "\e[r\e[H\e[J"
+    write (STDOUT_FILENO, RESET_SCREEN_CMD, sizeof(RESET_SCREEN_CMD));
 }
 
+static pid_t LaunchShell (const struct account* acct)
+{
+    pid_t pid = fork();
+    if (pid > 0)
+	return (pid);
+    else if (pid < 0)
+	ExitWithError ("fork");
+
+    fchown (STDIN_FILENO, acct->uid, acct->gid);
+
+    if (0 != setgid (acct->gid))
+	perror ("setgid");
+    if (0 != setuid (acct->uid))
+	perror ("setuid");
+
+    clearenv();
+    setenv ("TERM", "linux", true);
+    setenv ("PATH", "/usr/bin", true);
+    setenv ("USER", acct->name, true);
+    setenv ("SHELL", acct->shell, true);
+    setenv ("HOME", acct->dir, true);
+
+    if (0 != chdir (acct->dir))
+	perror ("chdir");
+
+    char shname [16];
+    const char* shbasename = strrchr(acct->shell, '/');
+    if (!shbasename++)
+	shbasename = acct->shell;
+    snprintf (shname, sizeof(shname), "-%s", shbasename);
+    char* argv[] = { shname, NULL };
+    execvp (acct->shell, argv);
+    ExitWithError ("execvp");
+}

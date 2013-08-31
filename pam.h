@@ -6,7 +6,9 @@
 #pragma once
 #include "config.h"
 
+struct account;
+
 void PamOpen (void);
 void PamClose (void);
-const char* PamLogin (void);
+bool PamLogin (const struct account* acct, const char* password);
 void PamLogout (void);
