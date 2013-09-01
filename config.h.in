@@ -15,14 +15,7 @@
 // Define to the address where bug reports for this package should be sent.
 #define @PKG_UNAME@_BUGREPORT	"@PKG_BUGREPORT@"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <string.h>
-#include <unistd.h>
-
-void* xmalloc (size_t n);
-void xfree (void* p);
-
-#define xfreenull(pp)	do { xfree(pp); pp = NULL; } while(0)
+// Define to appropirate UI string values
+#define USERNAME_PROMPT		"Username:"
+#define PASSWORD_PROMPT		"Password:"
+#define PASSWORD_MASKSTR	"***************"

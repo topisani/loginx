@@ -3,8 +3,7 @@
 // Copyright (c) 2013 by Mike Sharov <msharov@users.sourceforge.net>
 // This file is free software, distributed under the MIT License.
 
-#include "ui.h"
-#include "pw.h"
+#include "defs.h"
 #include <pwd.h>
 #include <signal.h>
 #include <time.h>

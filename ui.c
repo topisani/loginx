@@ -3,7 +3,7 @@
 // Copyright (c) 2013 by Mike Sharov <msharov@users.sourceforge.net>
 // This file is free software, distributed under the MIT License.
 
-#include "ui.h"
+#include "defs.h"
 #include <ncurses.h>
 #include <ctype.h>
 
@@ -13,14 +13,11 @@
 
 #define min(a,b)	((a)<(b)?(a):(b))
 
-#define USERNAME_PROMPT		"Username:"
-#define PASSWORD_PROMPT		"Password:"
-#define PASSWORD_MASKSTR	"***************"
-
 enum {
-    MAX_INPUT_WIDTH = 16,
-    LOGIN_WINDOW_WIDTH = MAX_INPUT_WIDTH+(sizeof(PASSWORD_PROMPT)-1)+2+3,
-    LOGIN_WINDOW_HEIGHT = 4
+    MAX_PROMPT_WIDTH = sizeof(PASSWORD_PROMPT)-1,
+    MAX_INPUT_WIDTH = sizeof(PASSWORD_MASKSTR),
+    LOGIN_WINDOW_WIDTH = 1+1+MAX_PROMPT_WIDTH+1+MAX_INPUT_WIDTH+1+1,
+    LOGIN_WINDOW_HEIGHT = 1+2+1
 };
 
 //----------------------------------------------------------------------

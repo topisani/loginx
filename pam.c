@@ -3,8 +3,7 @@
 // Copyright (c) 2013 by Mike Sharov <msharov@users.sourceforge.net>
 // This file is free software, distributed under the MIT License.
 
-#include "pam.h"
-#include "pw.h"
+#include "defs.h"
 #include <security/pam_appl.h>
 #include <grp.h>
 #include <pwd.h>
