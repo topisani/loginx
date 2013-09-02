@@ -11,20 +11,20 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/kd.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
 
 //----------------------------------------------------------------------
 
 static void InitEnvironment (void);
-static int  OpenTTYFd (const char* ttypath);
-static void OpenTTY (const char* ttypath);
+static int  OpenTTYFd (void);
+static void OpenTTY (void);
 static void ResetTerminal (void);
 
 //----------------------------------------------------------------------
 
 static pid_t _pgrp = 0;
+const char* _termname = "linux";
+char _ttypath [16];
 
 //{{{ Signal handling --------------------------------------------------
 
@@ -89,16 +89,17 @@ void ExitWithMessage (const char* msg)
 
 //}}}-------------------------------------------------------------------
 
-int main (void)
+int main (int argc, const char* const* argv)
 {
-    char ttypath [16];
-    ttyname_r (STDIN_FILENO, ttypath, sizeof(ttypath));
     InstallCleanupHandlers();
-#if 0
+
+    snprintf (_ttypath, sizeof(_ttypath), _PATH_DEV "%s", (argc > 1 ? argv[1] : "tty1"));
+    if (argc > 3)
+	_termname = argv[3];
+
     InitEnvironment();
-    OpenTTY (ttypath);
+    OpenTTY();
     ResetTerminal();
-#endif
     acclist_t al = ReadAccounts();
     ReadLastlog();
 
@@ -110,29 +111,30 @@ int main (void)
     if (!loginok)
 	return (EXIT_FAILURE);
 
+    WriteLastlog (al[ali]);
+    WriteUtmp (al[ali]);
+
     RunSession (al[ali]);
 
     PamLogout();
     PamClose();
-
-    fchown (STDIN_FILENO, getuid(), getgid());
-
     return (EXIT_SUCCESS);
 }
 
 static void InitEnvironment (void)
 {
-    if ((_pgrp = setsid()) < 0)
-	ExitWithError ("setsid");
-
+    if (0 != chdir ("/"))
+	ExitWithError ("chdir");
     for (unsigned f = STDERR_FILENO+1, fend = getdtablesize(); f < fend; ++f)
 	close (f);
+    if ((_pgrp = setsid()) < 0)
+	ExitWithError ("setsid");
 }
 
-static int OpenTTYFd (const char* ttypath)
+static int OpenTTYFd (void)
 {
     // O_NOCTTY is needed to use TIOCSCTTY, which will steal the tty control from any other pgrp
-    int fd = open (ttypath, O_RDWR| O_NOCTTY| O_NONBLOCK, 0);
+    int fd = open (_ttypath, O_RDWR| O_NOCTTY| O_NONBLOCK, 0);
     if (fd < 0)
 	ExitWithError ("open");
 
@@ -145,37 +147,37 @@ static int OpenTTYFd (const char* ttypath)
 	ExitWithMessage ("the tty is not a character device");
 
     // Establish as session leader and tty owner
-    //if (_pgrp != tcgetsid(fd))
-	//if (ioctl (fd, TIOCSCTTY, 1) < 0)
-	    //ExitWithError ("failed to take tty control");
+    if (_pgrp != tcgetsid(fd))
+	if (ioctl (fd, TIOCSCTTY, 1) < 0)
+	    ExitWithError ("failed to take tty control");
     return (fd);
 }
 
-static void OpenTTY (const char* ttypath)
+static void OpenTTY (void)
 {
     // First time open tty to make it controlling terminal and vhangup
-    int fd = OpenTTYFd (ttypath);
+    int fd = OpenTTYFd();
     // Now close it and vhangup to eliminate all other processes on this tty
     close (fd);
     for (unsigned f = STDIN_FILENO; f <= STDERR_FILENO; ++f)
 	close (f);
     signal (SIGHUP, SIG_IGN);	// To not be killed by vhangup
-    //vhangup();
+    vhangup();
     signal (SIGHUP, OnSignal);	// To be killed by init
 
     // Reopen the tty and establish standard fds
-    fd = OpenTTYFd (ttypath);
+    fd = OpenTTYFd();
     if (fd != STDIN_FILENO)	// All fds, except syslog, must be closed at this point
 	ExitWithError ("open stdin");
     if (dup(fd) != STDOUT_FILENO || dup(fd) != STDERR_FILENO)
 	ExitWithError ("open stdout");
 
-    //if (_pgrp != tcgetsid(fd))
-	//if (ioctl (fd, TIOCSCTTY, 1) < 0)
-	    //ExitWithError ("failed to take tty control");
+    if (_pgrp != tcgetsid(fd))
+	if (ioctl (fd, TIOCSCTTY, 1) < 0)
+	    ExitWithError ("failed to take tty control");
 
-    //if (tcsetpgrp (STDIN_FILENO, _pgrp))
-	//ExitWithError ("tcsetpgrp");
+    if (tcsetpgrp (STDIN_FILENO, _pgrp))
+	ExitWithError ("tcsetpgrp");
 }
 
 static void ResetTerminal (void)

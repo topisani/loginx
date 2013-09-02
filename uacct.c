@@ -5,12 +5,14 @@
 
 #include "defs.h"
 #include <pwd.h>
+#include <grp.h>
 #include <utmp.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <time.h>
 
 static struct account** _accts = NULL;
 static unsigned _naccts = 0;
+gid_t _ttygroup = 0;
 
 static void CleanupAccounts (void)
 {
@@ -32,6 +34,12 @@ static bool CanLogin (const struct passwd* pw)
 
 acclist_t ReadAccounts (void)
 {
+    _ttygroup = getgid();
+    struct group* ttygr = getgrnam("tty");
+    if (ttygr)	// If no tty group, use user's primary group
+	_ttygroup = ttygr->gr_gid;
+    endgrent();
+
     unsigned nac = 0;
     setpwent();
     for (struct passwd* pw; (pw = getpwent());)
@@ -51,6 +59,7 @@ acclist_t ReadAccounts (void)
 	_accts[nac]->shell = strdup (pw->pw_shell);
 	++nac;
     }
+    endpwent();
     _naccts = nac;
     return ((acclist_t) _accts);
 }
@@ -62,7 +71,7 @@ unsigned NAccounts (void)
 
 void ReadLastlog (void)
 {
-    int fd = open ("/var/log/lastlog", O_RDONLY);
+    int fd = open (_PATH_LASTLOG, O_RDONLY);
     if (fd < 0)
 	return;
     struct stat st;
@@ -73,4 +82,43 @@ void ReadLastlog (void)
 		pread (fd, &_accts[i]->ltime, sizeof(_accts[i]->ltime), _accts[i]->uid * sizeof(struct lastlog));
     }
     close (fd);
+}
+
+void WriteLastlog (const struct account* acct)
+{
+    int fd = open (_PATH_LASTLOG, O_WRONLY| O_CREAT, 644);
+    if (fd < 0)
+	return;
+
+    struct lastlog ll;
+    memset (&ll, 0, sizeof(ll));
+    ll.ll_time = time(NULL);
+    strncpy (ll.ll_line, _ttypath, sizeof(ll.ll_line)-1);
+    gethostname (ll.ll_host, sizeof(ll.ll_host)-1);
+
+    pwrite (fd, &ll, sizeof(ll), acct->uid*sizeof(ll));
+
+    close (fd);
+}
+
+void WriteUtmp (const struct account* acct)
+{
+    struct utmp ut;
+    memset (&ut, 0, sizeof(ut));
+    ut.ut_type = LOGIN_PROCESS;
+    ut.ut_pid = getpid();
+    strncpy (ut.ut_line, _ttypath, sizeof(ut.ut_line)-1);
+    strncpy (ut.ut_user, acct->name, sizeof(ut.ut_user)-1);
+    gethostname (ut.ut_host, sizeof(ut.ut_host)-1);
+    struct timeval tv;
+    gettimeofday (&tv, NULL);
+    ut.ut_tv.tv_sec = tv.tv_sec;
+    ut.ut_tv.tv_usec = tv.tv_usec;
+
+    utmpname (_PATH_UTMP);
+    setutent();
+    pututline (&ut);
+    endutent();
+
+    updwtmp (_PATH_WTMP, &ut);
 }

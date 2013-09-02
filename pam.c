@@ -78,13 +78,24 @@ bool PamLogin (const struct account* acct, const char* password)
     verify(r,"pam_open_session");
     pam_get_item (_pamh, PAM_USER, (const void**) &_username);
     _password = NULL;
-    return (_username && 0 == strcmp (_username, acct->name));
+    if (!_username || 0 != strcmp (_username, acct->name))
+	return (false);
+
+    // Give ownership of the tty
+    fchown (STDIN_FILENO, acct->uid, _ttygroup ? _ttygroup : acct->gid);
+    fchmod (STDIN_FILENO, 0620);
+    return (true);
 }
 
 void PamLogout (void)
 {
     if (!_username)
 	return;
+
+    // Retake ownership of the tty
+    fchown (STDIN_FILENO, getuid(), _ttygroup ? _ttygroup : getgid());
+    fchmod (STDIN_FILENO, 0620);
+
     pam_close_session (_pamh, PAM_SILENT);
     pam_setcred (_pamh, PAM_SILENT| PAM_DELETE_CRED);
     _username = NULL;

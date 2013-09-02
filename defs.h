@@ -11,6 +11,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <paths.h>
 
 enum { MAX_PW_LEN = 64 };
 
@@ -24,6 +27,10 @@ struct account {
 };
 
 typedef const struct account* const* acclist_t;
+
+extern gid_t _ttygroup;
+extern const char* _termname;
+extern char _ttypath [16];
 
 //----------------------------------------------------------------------
 
@@ -42,8 +49,10 @@ void PamLogout (void);
 
 // uacct.c
 acclist_t ReadAccounts (void);
-void ReadLastlog (void);
 unsigned NAccounts (void);
+void ReadLastlog (void);
+void WriteLastlog (const struct account* acct);
+void WriteUtmp (const struct account* acct);
 
 // ui.c
 unsigned LoginBox (acclist_t al, char* password);

@@ -1,7 +1,5 @@
 #include "defs.h"
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <errno.h>
 
 //----------------------------------------------------------------------
 
@@ -22,23 +20,20 @@ static int _killsig = SIGTERM;
 
 void RunSession (const struct account* acct)
 {
-    // Set session signal handlers that quit
-    signal (SIGHUP, QuitSignal);
-    signal (SIGTERM, QuitSignal);
-    signal (SIGALRM, AlarmSignal);
-    signal (SIGUSR1, XreadySignal);
-
-    // Give ownership of the tty
-    fchown (STDIN_FILENO, acct->uid, acct->gid);
-    fchmod (STDIN_FILENO, 0600);
-
     // Check if need to launch X
     char xinitrcPath [PATH_MAX];
     snprintf (xinitrcPath, sizeof(xinitrcPath), "%s/.xinitrc", acct->dir);
-    bool useX = (0 == access (xinitrcPath, R_OK));
 
-    pid_t xpid = (useX ? LaunchX (acct) : 0);
-    pid_t shellpid = LaunchShell (acct, (useX && xpid) ? ".xinitrc" : NULL);
+    pid_t xpid = 0;
+    if (0 == access (xinitrcPath, R_OK))
+	xpid = LaunchX (acct);
+    pid_t shellpid = LaunchShell (acct, xpid ? ".xinitrc" : NULL);
+
+    // Set session signal handlers that quit
+    typedef void (*psigfunc_t)(int);
+    psigfunc_t hupsig = signal (SIGHUP, QuitSignal);
+    psigfunc_t termsig = signal (SIGTERM, QuitSignal);
+    psigfunc_t alrmsig = signal (SIGALRM, AlarmSignal);
 
     while (shellpid || xpid) {
 	int chldstat = 0;
@@ -59,9 +54,10 @@ void RunSession (const struct account* acct)
 	}
     }
 
-    // Retake ownership of the tty
-    fchown (STDIN_FILENO, getuid(), getgid());
-
+    // Restore main signal handlers
+    signal (SIGHUP, hupsig);
+    signal (SIGTERM, termsig);
+    signal (SIGALRM, alrmsig);
     alarm (0);
 }
 
@@ -90,8 +86,8 @@ static void BecomeUser (const struct account* acct)
 	perror ("setuid");
 
     clearenv();
-    setenv ("TERM", "linux", false);
-    setenv ("PATH", "/bin:/usr/bin", false);
+    setenv ("TERM", _termname, false);
+    setenv ("PATH", _PATH_DEFPATH, false);
     setenv ("USER", acct->name, true);
     setenv ("SHELL", acct->shell, true);
     setenv ("HOME", acct->dir, true);
@@ -102,18 +98,16 @@ static void BecomeUser (const struct account* acct)
 
 static pid_t LaunchX (const struct account* acct)
 {
+    signal (SIGUSR1, XreadySignal);
+
     pid_t pid = fork();
     if (pid > 0) {
 	for (;;) {	// Wait for SIGUSR1 from X before returning
 	    int ecode, rc = waitpid (pid, &ecode, 0);
-	    if (rc == pid)	// X quit before signalling ready
-		ExitWithMessage ("X failed to start");
-	    else if (errno != EINTR)
-		ExitWithError ("waitpid");
-	    else if (_xready) {
-		setenv ("DISPLAY", ":0", true);
+	    if (rc == pid || errno != EINTR)
+		return (0);	// X failed to start, fallback to plain shell
+	    else if (_xready)
 		return (pid);
-	    }
 	}
 	return (pid);
     } else if (pid < 0)
@@ -138,11 +132,15 @@ static pid_t LaunchShell (const struct account* acct, const char* arg)
 	ExitWithError ("fork");
     BecomeUser (acct);
 
-    char shname [16];
+    if (arg)	// If launching xinitrc, set DISPLAY
+	setenv ("DISPLAY", ":0", true);
+
+    char shname [16];	// argv[0] of a login shell is "-bash"
     const char* shbasename = strrchr(acct->shell, '/');
     if (!shbasename++)
 	shbasename = acct->shell;
     snprintf (shname, sizeof(shname), "-%s", shbasename);
+
     const char* argv[] = { shname, arg, NULL };
     execvp (acct->shell, (char* const*) argv);
     ExitWithError ("execvp");
