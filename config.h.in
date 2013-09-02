@@ -19,3 +19,6 @@
 #define USERNAME_PROMPT		"Username:"
 #define PASSWORD_PROMPT		"Password:"
 #define PASSWORD_MASKSTR	"***************"
+
+// Time in seconds to wait between SIGTERM and SIGKILL
+#define KILL_TIMEOUT		1

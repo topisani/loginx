@@ -8,11 +8,17 @@
 #include <grp.h>
 #include <pwd.h>
 
+//----------------------------------------------------------------------
+
 static int xconv (int num_msg, const struct pam_message** msgm, struct pam_response** response, void* appdata_ptr);
+
+//----------------------------------------------------------------------
 
 static pam_handle_t* _pamh = NULL;
 static const char* _username = NULL;
-static const char* _password = NULL;
+static const char* _password = NULL;	// Used only by xconv during PamLogin
+
+//----------------------------------------------------------------------
 
 static void verify (int r, const char* fn)
 {
@@ -55,7 +61,7 @@ void PamClose (void)
 bool PamLogin (const struct account* acct, const char* password)
 {
     pam_set_item (_pamh, PAM_USER, acct->name);
-    _password = password;
+    _password = password;	// Used only by xconv
     int r = pam_authenticate (_pamh, PAM_SILENT| PAM_DISALLOW_NULL_AUTHTOK);
     verify(r,"pam_authenticate");
     r = pam_acct_mgmt (_pamh, PAM_SILENT| PAM_DISALLOW_NULL_AUTHTOK);

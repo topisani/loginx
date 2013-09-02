@@ -31,6 +31,8 @@ typedef const struct account* const* acclist_t;
 void* xmalloc (size_t n);
 void xfree (void* p);
 #define xfreenull(pp)	do { xfree(pp); pp = NULL; } while(0)
+void ExitWithError (const char* fn) __attribute__((noreturn));
+void ExitWithMessage (const char* msg) __attribute__((noreturn));
 
 // pam.c
 void PamOpen (void);
@@ -38,10 +40,13 @@ void PamClose (void);
 bool PamLogin (const struct account* acct, const char* password);
 void PamLogout (void);
 
-// acct.c
+// uacct.c
 acclist_t ReadAccounts (void);
 void ReadLastlog (void);
 unsigned NAccounts (void);
 
 // ui.c
 unsigned LoginBox (acclist_t al, char* password);
+
+// usess.c
+void RunSession (const struct account* acct);

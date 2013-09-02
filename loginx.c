@@ -12,26 +12,19 @@
 #include <sys/ioctl.h>
 #include <sys/kd.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <fcntl.h>
 #include <errno.h>
 
 //----------------------------------------------------------------------
-
-static void ExitWithError (const char* fn) __attribute__((noreturn));
-static void ExitWithMessage (const char* msg) __attribute__((noreturn));
 
 static void InitEnvironment (void);
 static int  OpenTTYFd (const char* ttypath);
 static void OpenTTY (const char* ttypath);
 static void ResetTerminal (void);
 
-static pid_t LaunchShell (const struct account* acct);
-
 //----------------------------------------------------------------------
 
 static pid_t _pgrp = 0;
-static pid_t _shellpid = 0;
 
 //{{{ Signal handling --------------------------------------------------
 
@@ -82,13 +75,13 @@ void xfree (void* p)
 	free (p);
 }
 
-static void ExitWithError (const char* fn)
+void ExitWithError (const char* fn)
 {
     printf ("Error: %s: %s\n", fn, strerror(errno));
     exit (EXIT_FAILURE);
 }
 
-static void ExitWithMessage (const char* msg)
+void ExitWithMessage (const char* msg)
 {
     printf ("Error: %s\n", msg);
     exit (EXIT_FAILURE);
@@ -108,19 +101,16 @@ int main (void)
 #endif
     acclist_t al = ReadAccounts();
     ReadLastlog();
+
     char password [MAX_PW_LEN];
     unsigned ali = LoginBox (al, password);
     PamOpen();
-    if (!PamLogin (al[ali], password))
+    bool loginok = PamLogin (al[ali], password);
+    memset (password, 0, sizeof(password));
+    if (!loginok)
 	return (EXIT_FAILURE);
-    _shellpid = LaunchShell (al[ali]);
 
-    while (_shellpid) {
-	int chldstat = 0;
-	pid_t cpid = wait (&chldstat);
-	if (cpid == _shellpid)
-	    _shellpid = 0;
-    }
+    RunSession (al[ali]);
 
     PamLogout();
     PamClose();
@@ -239,39 +229,4 @@ static void ResetTerminal (void)
     // Clear the screen; [r resets scroll region, [H homes cursor, [J erases
     #define RESET_SCREEN_CMD "\e[r\e[H\e[J"
     write (STDOUT_FILENO, RESET_SCREEN_CMD, sizeof(RESET_SCREEN_CMD));
-}
-
-static pid_t LaunchShell (const struct account* acct)
-{
-    pid_t pid = fork();
-    if (pid > 0)
-	return (pid);
-    else if (pid < 0)
-	ExitWithError ("fork");
-
-    fchown (STDIN_FILENO, acct->uid, acct->gid);
-
-    if (0 != setgid (acct->gid))
-	perror ("setgid");
-    if (0 != setuid (acct->uid))
-	perror ("setuid");
-
-    clearenv();
-    setenv ("TERM", "linux", true);
-    setenv ("PATH", "/usr/bin", true);
-    setenv ("USER", acct->name, true);
-    setenv ("SHELL", acct->shell, true);
-    setenv ("HOME", acct->dir, true);
-
-    if (0 != chdir (acct->dir))
-	perror ("chdir");
-
-    char shname [16];
-    const char* shbasename = strrchr(acct->shell, '/');
-    if (!shbasename++)
-	shbasename = acct->shell;
-    snprintf (shname, sizeof(shname), "-%s", shbasename);
-    char* argv[] = { shname, NULL };
-    execvp (acct->shell, argv);
-    ExitWithError ("execvp");
 }

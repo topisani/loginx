@@ -22,8 +22,7 @@ BINDIR		:= @bindir@
 
 ################ Compiler options ####################################
 
-WARNOPTS	:= -Wall -Wextra -Wpointer-arith -Wredundant-decls \
-		-Wshadow -Wcast-qual @SYSWARNS@
+WARNOPTS	:= -Wall -Wextra -Wredundant-decls -Wshadow @SYSWARNS@
 CFLAGS		:= ${WARNOPTS} @CUSTOMINCDIR@ -march=native -std=gnu99 \
 		-ffunction-sections -fdata-sections
 LDFLAGS		:= @CUSTOMLIBDIR@
