@@ -115,6 +115,7 @@ int main (int argc, const char* const* argv)
 
     WriteLastlog (al[ali]);
     WriteUtmp (al[ali]);
+    WriteMotd (al[ali]);
     if (!al[ali]->uid)	// The login strings are copied from util-linux login to allow log grepping compatibility
 	syslog (LOG_NOTICE, "ROOT LOGIN ON %s", ttyname);
     else
@@ -124,6 +125,7 @@ int main (int argc, const char* const* argv)
 
     PamLogout();
     PamClose();
+    ResetTerminal();
     return (EXIT_SUCCESS);
 }
 
@@ -230,7 +232,5 @@ static void ResetTerminal (void)
     if (0 > tcsetattr (STDIN_FILENO, TCSANOW, &ti))
 	ExitWithError ("tcsetattr");
 
-    // Clear the screen; [r resets scroll region, [H homes cursor, [J erases
-    #define RESET_SCREEN_CMD "\e[r\e[H\e[J"
-    write (STDOUT_FILENO, RESET_SCREEN_CMD, sizeof(RESET_SCREEN_CMD));
+    ClearScreen();
 }
