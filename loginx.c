@@ -22,7 +22,6 @@ static void ResetTerminal (void);
 
 //----------------------------------------------------------------------
 
-static pid_t _pgrp = 0;
 const char* _termname = "linux";
 char _ttypath [16];
 
@@ -135,8 +134,10 @@ static void InitEnvironment (void)
     // ExitWithError will open syslog fd as stdin, but that's ok because it quits right after
     if (0 != chdir ("/"))
 	ExitWithError ("chdir");
-    if ((_pgrp = setsid()) < 0)
-	ExitWithError ("setsid");
+    if (getsid(0) != getpid())
+	if (setsid() < 0)
+	    ExitWithError ("setsid");
+    setenv ("TERM", _termname, true);
 }
 
 static int OpenTTYFd (void)
@@ -155,7 +156,7 @@ static int OpenTTYFd (void)
 	ExitWithMessage ("the tty is not a character device");
 
     // Establish as session leader and tty owner
-    if (_pgrp != tcgetsid(fd))
+    if (getpgid(0) != tcgetsid(fd))
 	if (ioctl (fd, TIOCSCTTY, 1) < 0)
 	    ExitWithError ("failed to take tty control");
     return (fd);
@@ -177,12 +178,7 @@ static void OpenTTY (void)
 	ExitWithError ("open stdin");
     if (dup(fd) != STDOUT_FILENO || dup(fd) != STDERR_FILENO)
 	ExitWithError ("open stdout");
-
-    if (_pgrp != tcgetsid(fd))
-	if (ioctl (fd, TIOCSCTTY, 1) < 0)
-	    ExitWithError ("failed to take tty control");
-
-    if (tcsetpgrp (STDIN_FILENO, _pgrp))
+    if (tcsetpgrp (STDIN_FILENO, getpgrp()))
 	ExitWithError ("tcsetpgrp");
 }
 
