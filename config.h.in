@@ -22,3 +22,6 @@
 
 // Time in seconds to wait between SIGTERM and SIGKILL
 #define KILL_TIMEOUT		1
+
+// Using GNU-specific glibc features
+#define _GNU_SOURCE

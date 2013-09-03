@@ -23,7 +23,7 @@ BINDIR		:= @bindir@
 ################ Compiler options ####################################
 
 WARNOPTS	:= -Wall -Wextra -Wredundant-decls -Wshadow @SYSWARNS@
-CFLAGS		:= ${WARNOPTS} @CUSTOMINCDIR@ -march=native -std=gnu99 \
+CFLAGS		:= ${WARNOPTS} @CUSTOMINCDIR@ -march=native -std=c99 \
 		-ffunction-sections -fdata-sections
 LDFLAGS		:= @CUSTOMLIBDIR@
 LIBS		:= -lpam -lncurses
