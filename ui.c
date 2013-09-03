@@ -34,7 +34,7 @@ static void CursesCleanup (void);
 static void CursesInit (void)
 {
     if (!initscr())
-	exit (EXIT_FAILURE);
+	ExitWithMessage ("failed to initialize curses");
     atexit (CursesCleanup);
     start_color();
     use_default_colors();
@@ -57,15 +57,16 @@ unsigned LoginBox (acclist_t al, char* password)
     CursesInit();
 
     if (!(_loginbox = newwin (LOGIN_WINDOW_HEIGHT, LOGIN_WINDOW_WIDTH, (LINES-LOGIN_WINDOW_HEIGHT)/2, (COLS-LOGIN_WINDOW_WIDTH)/2)))
-	exit (EXIT_FAILURE);
+	ExitWithMessage ("failed to create login window");
     keypad (_loginbox, true);
+    nodelay (_loginbox, false);
     wbkgd (_loginbox, COLOR_PAIR(1)|' ');
 
     int key;
     unsigned pwlen = 0;
     const unsigned aln = NAccounts();
     if (!aln)
-	exit (EXIT_FAILURE);
+	ExitWithMessage ("no usable accounts found");
     memset (password, 0, MAX_PW_LEN);
 
     // Make last logged in user default

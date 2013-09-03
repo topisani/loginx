@@ -145,7 +145,7 @@ static void InitEnvironment (void)
 static int OpenTTYFd (void)
 {
     // O_NOCTTY is needed to use TIOCSCTTY, which will steal the tty control from any other pgrp
-    int fd = open (_ttypath, O_RDWR| O_NOCTTY| O_NONBLOCK, 0);
+    int fd = open (_ttypath, O_RDWR| O_NOCTTY, 0);
     if (fd < 0)
 	ExitWithError ("open");
 

@@ -136,4 +136,5 @@ void WriteMotd (const struct account* acct)
     close (fd);
     const time_t lltime = acct->ltime;
     printf ("Last login: %s\n", ctime(&lltime));
+    fflush (stdout);
 }
