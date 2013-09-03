@@ -1,0 +1,64 @@
+.TH LOGINX "1" "September 2013" "loginx" "User Commands"
+.SH NAME
+loginx \- begin a shell or X session from console
+.SH SYNOPSIS
+.B loginx tty
+[
+.BR speed
+[
+.BR term
+]
+]
+.SH DESCRIPTION
+.B loginx
+is used to start a session from the console.
+.B loginx
+displays a dialog prompting for a password. The last logged-in user
+is selected by default. To change to a different user press TAB, UP,
+or DOWN keys.
+.PP
+Once authenticated,
+.B loginx
+starts the session shell. If the user has .xinitrc file in the home
+directory,
+.B loginx
+will launch the X server and pass .xinitrc as an argument to the
+login shell. When launching the shell,
+.B loginx
+will set environment variables
+.BR $HOME ,
+.BR $USER ,
+.BR $SHELL ,
+.BR $PATH ,
+and
+.BR $TERM ,
+to appropriate values.
+.PP
+.B loginx
+uses PAM for authentication and requires a valid PAM configuration
+file to be installed. A typical configuration file is install by
+.B make install ,
+but you are encouraged to verify that it is appropriate for your
+system. By default,
+.B loginx
+will install a systemd service. To activate type
+.B systemctl enable loginx@tty1 .
+You may have to first disable the getty@tty1 service and the display
+manager service, if you are using those.
+.PP
+If you are using SYSV init, you would add the following to
+.BR /etc/inittab:
+.PP
+.B 1:23:respawn:/sbin/loginx tty1
+
+.SH BUGS
+
+Report bugs at 
+.UR https\://github.com/msharov/loginx/issues
+.UE .
+
+.SH AVAILABILITY
+
+Latest code at
+.UR https\://github.com/msharov/loginx
+.UE .

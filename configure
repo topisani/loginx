@@ -234,12 +234,12 @@ done
 
 #### Set directory prefixes ##########################################
 
-echo "s/@prefix@/${ac_var_prefix:=\/usr\/local}/g
+echo "s/@prefix@/${ac_var_prefix:=\/usr}/g
 s/@bindir@/$ac_var_prefix\/bin/g
-s/@sbindir@/$ac_var_prefix\/sbin/g
+s/@sbindir@/\/sbin/g
 s/@datarootdir@/${ac_var_datarootdir:=$ac_var_prefix\/share}/g
 s/@datadir@/$ac_var_datarootdir/g
-s/@sysconfdir@/$ac_var_prefix\/etc/g
+s/@sysconfdir@/\/etc/g
 s/@localstatedir@/$ac_var_prefix\/var/g
 s/@includedir@/${ac_var_includedir:=$ac_var_prefix\/include}/g
 s/@docdir@/${ac_var_docdir:=$ac_var_datarootdir\/doc\/$PKG_NAME}/g

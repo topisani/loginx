@@ -12,13 +12,15 @@ CC		:= @CC@
 LD		:= @CC@
 INSTALL		:= @INSTALL@
 
-INSTALLEXE	:= ${INSTALL} -D -p -m 755 -s
+INSTALLEXE	:= ${INSTALL} -D -p -m 700 -s
 INSTALLDATA	:= ${INSTALL} -D -p -m 644
 
 ################ Destination #########################################
 
-prefix		:= @prefix@
-BINDIR		:= @bindir@
+BINDIR		:= @sbindir@
+MANDIR		:= @mandir@
+PAMDIR		:= @sysconfdir@/pam.d
+SYSDDIR		:= @libdir@/systemd/system
 
 ################ Compiler options ####################################
 

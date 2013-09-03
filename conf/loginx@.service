@@ -1,0 +1,23 @@
+[Unit]
+Description=Loginx on %I
+Documentation=man:loginx(8)
+After=systemd-user-sessions.service
+Before=getty.target
+IgnoreOnIsolate=yes
+ConditionPathExists=/dev/tty0
+
+[Service]
+ExecStart=/sbin/loginx %I
+Type=idle
+Restart=always
+RestartSec=0
+UtmpIdentifier=%I
+TTYPath=/dev/%I
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+KillMode=process
+IgnoreSIGPIPE=no
+
+[Install]
+Alias=getty.target.wants/loginx@tty1.service

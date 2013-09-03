@@ -34,15 +34,32 @@ $O%.o:	%.c
 
 ifdef BINDIR
 EXEI	:= $(addprefix ${BINDIR}/,${EXE})
+PAMCNFI	:= ${PAMDIR}/${EXE}
+SYSDCFI	:= ${SYSDDIR}/${EXE}@.service
+MANI	:= ${MANDIR}/man1/${EXE}.1.gz
 
-install:	${EXEI}
+install:	${EXEI} ${PAMCNFI} ${SYSDCFI} ${MANI}
+
 ${EXEI}:	${EXE}
 	@echo "Installing $< as $@ ..."
 	@${INSTALLEXE} $< $@
 
+${PAMCNFI}:	conf/${EXE}
+	@echo "Installing PAM configuration file ..."
+	@${INSTALLDATA} $< $@
+
+${SYSDCFI}:	conf/${EXE}@.service
+	@echo "Installing systemd service file ..."
+	@${INSTALLDATA} $< $@
+
+${MANI}:	conf/${EXE}.1
+	@echo "Installing man page ..."
+	@gzip -9 -c $< > $@
+	@chmod 644 $@
+
 uninstall:
-	@echo "Removing ${EXEI} ..."
-	@rm -f ${EXEI}
+	@echo "Uninstalling ${EXE} ..."
+	@rm -f ${EXEI} ${PAMCNFI} ${SYSDCFI} ${MANI}
 endif
 
 ################ Maintenance ###########################################
