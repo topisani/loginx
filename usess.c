@@ -102,21 +102,32 @@ static pid_t LaunchX (const struct account* acct)
 {
     signal (SIGUSR1, XreadySignal);
 
+    // Block delivery of SIGUSR1 until ready to avoid race conditions
+    sigset_t busr, orig;
+    sigemptyset (&busr);
+    sigaddset (&busr, SIGUSR1);
+    sigprocmask (SIG_BLOCK, &busr, &orig);
+
     pid_t pid = fork();
     if (pid > 0) {
-	for (;;) {	// Wait for SIGUSR1 from X before returning
-	    int ecode, rc = waitpid (pid, &ecode, 0);
-	    if (rc == pid || errno != EINTR)
+	sigprocmask (SIG_SETMASK, &orig, NULL);	// Now unblock SIGUSR1
+	for (;;) {
+	    sigsuspend (&orig);	// Wait for SIGUSR1 from X before returning
+	    int ecode, rc = waitpid (pid, &ecode, WNOHANG);
+	    if (rc || errno != EINTR)
 		return (0);	// X failed to start, fallback to plain shell
 	    else if (_xready)
-		return (pid);
+		break;
 	}
 	return (pid);
     } else if (pid < 0)
 	ExitWithError ("fork");
     BecomeUser (acct);
 
+    signal (SIGTTIN, SIG_IGN);	// Ignore server reads and writes
+    signal (SIGTTOU, SIG_IGN);
     signal (SIGUSR1, SIG_IGN);	// This tells the X server to send SIGUSR1 to parent when ready
+    sigprocmask (SIG_SETMASK, &orig, NULL);	// Now unblock SIGUSR1
 
     const char* argv[] = { "X", ":0", "-nolisten", "tcp", "-auth", ".config/Xauthority", NULL };
     if (0 != access (argv[5], R_OK))
