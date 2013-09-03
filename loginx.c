@@ -77,13 +77,13 @@ void xfree (void* p)
 
 void ExitWithError (const char* fn)
 {
-    printf ("Error: %s: %s\n", fn, strerror(errno));
+    syslog (LOG_ERR, "%s: %s", fn, strerror(errno));
     exit (EXIT_FAILURE);
 }
 
 void ExitWithMessage (const char* msg)
 {
-    printf ("Error: %s\n", msg);
+    syslog (LOG_ERR, "%s", msg);
     exit (EXIT_FAILURE);
 }
 
@@ -93,7 +93,10 @@ int main (int argc, const char* const* argv)
 {
     InstallCleanupHandlers();
 
-    snprintf (_ttypath, sizeof(_ttypath), _PATH_DEV "%s", (argc > 1 ? argv[1] : "tty1"));
+    openlog (LOGINX_NAME, LOG_ODELAY, LOG_AUTHPRIV);
+
+    const char* ttyname = (argc > 1 ? argv[1] : "tty1");
+    snprintf (_ttypath, sizeof(_ttypath), _PATH_DEV "%s", ttyname);
     if (argc > 3)
 	_termname = argv[3];
 
@@ -113,6 +116,10 @@ int main (int argc, const char* const* argv)
 
     WriteLastlog (al[ali]);
     WriteUtmp (al[ali]);
+    if (!al[ali]->uid)	// The login strings are copied from util-linux login to allow log grepping compatibility
+	syslog (LOG_NOTICE, "ROOT LOGIN ON %s", ttyname);
+    else
+	syslog (LOG_INFO, "LOGIN ON %s BY %s", ttyname, al[ali]->name);
 
     RunSession (al[ali]);
 
@@ -123,10 +130,11 @@ int main (int argc, const char* const* argv)
 
 static void InitEnvironment (void)
 {
+    for (unsigned f = 0, fend = getdtablesize(); f < fend; ++f)
+	close (f);
+    // ExitWithError will open syslog fd as stdin, but that's ok because it quits right after
     if (0 != chdir ("/"))
 	ExitWithError ("chdir");
-    for (unsigned f = STDERR_FILENO+1, fend = getdtablesize(); f < fend; ++f)
-	close (f);
     if ((_pgrp = setsid()) < 0)
 	ExitWithError ("setsid");
 }
@@ -159,15 +167,13 @@ static void OpenTTY (void)
     int fd = OpenTTYFd();
     // Now close it and vhangup to eliminate all other processes on this tty
     close (fd);
-    for (unsigned f = STDIN_FILENO; f <= STDERR_FILENO; ++f)
-	close (f);
     signal (SIGHUP, SIG_IGN);	// To not be killed by vhangup
     vhangup();
     signal (SIGHUP, OnSignal);	// To be killed by init
 
     // Reopen the tty and establish standard fds
     fd = OpenTTYFd();
-    if (fd != STDIN_FILENO)	// All fds, except syslog, must be closed at this point
+    if (fd != STDIN_FILENO)	// All fds must be closed at this point
 	ExitWithError ("open stdin");
     if (dup(fd) != STDOUT_FILENO || dup(fd) != STDERR_FILENO)
 	ExitWithError ("open stdout");

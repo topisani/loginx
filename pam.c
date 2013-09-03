@@ -24,7 +24,7 @@ static void verify (int r, const char* fn)
 {
     if (r == PAM_SUCCESS)
 	return;
-    fprintf(stderr,"Error: %s: %s\n", fn, pam_strerror(_pamh,r));
+    syslog (LOG_ERR, "%s: %s", fn, pam_strerror(_pamh,r));
     exit (EXIT_FAILURE);
 }
 
@@ -66,7 +66,6 @@ bool PamLogin (const struct account* acct, const char* password)
     verify(r,"pam_authenticate");
     r = pam_acct_mgmt (_pamh, PAM_SILENT| PAM_DISALLOW_NULL_AUTHTOK);
     if (r == PAM_NEW_AUTHTOK_REQD) {
-	fprintf(stderr,"Application must request new password...\n");
 	r = pam_chauthtok(_pamh,PAM_CHANGE_EXPIRED_AUTHTOK);
 	verify(r,"pam_chauthtok");
     }
@@ -118,7 +117,10 @@ static int xconv (int num_msg, const struct pam_message** msgm, struct pam_respo
 		reply[i].resp_retcode = 0;
 		break;
 	    case PAM_ERROR_MSG:
+		syslog (LOG_ERR, "%s", msgm[i]->msg);
+		break;
 	    case PAM_TEXT_INFO:
+		syslog (LOG_INFO, "%s", msgm[i]->msg);
 		break;
 	    default:	// Anything else fails login
 		for (int j = 0; j < num_msg; ++j) {

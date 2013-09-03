@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <syslog.h>
 #include <errno.h>
 #include <paths.h>
 

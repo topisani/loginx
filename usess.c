@@ -33,6 +33,7 @@ void RunSession (const struct account* acct)
     typedef void (*psigfunc_t)(int);
     psigfunc_t hupsig = signal (SIGHUP, QuitSignal);
     psigfunc_t termsig = signal (SIGTERM, QuitSignal);
+    psigfunc_t quitsig = signal (SIGQUIT, QuitSignal);
     psigfunc_t alrmsig = signal (SIGALRM, AlarmSignal);
 
     while (shellpid || xpid) {
@@ -55,9 +56,10 @@ void RunSession (const struct account* acct)
     }
 
     // Restore main signal handlers
-    signal (SIGHUP, hupsig);
-    signal (SIGTERM, termsig);
     signal (SIGALRM, alrmsig);
+    signal (SIGQUIT, termsig);
+    signal (SIGTERM, quitsig);
+    signal (SIGHUP, hupsig);
     alarm (0);
 }
 
@@ -132,8 +134,12 @@ static pid_t LaunchShell (const struct account* acct, const char* arg)
 	ExitWithError ("fork");
     BecomeUser (acct);
 
-    if (arg)	// If launching xinitrc, set DISPLAY
+    if (arg) {	// If launching xinitrc, set DISPLAY
 	setenv ("DISPLAY", ":0", true);
+	char xauthpath [PATH_MAX];
+	snprintf (xauthpath, sizeof(xauthpath), "%s/.config/Xauthority", acct->dir);
+	setenv ("XAUTHORITY", xauthpath, true);
+    }
 
     char shname [16];	// argv[0] of a login shell is "-bash"
     const char* shbasename = strrchr(acct->shell, '/');
