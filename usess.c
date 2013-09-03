@@ -6,6 +6,7 @@
 static void QuitSignal (int sig);
 static void AlarmSignal (int sig);
 static void XreadySignal (int sig);
+static void ChildSignal (int sig);
 static void BecomeUser (const struct account* acct);
 static pid_t LaunchX (const struct account* acct);
 static pid_t LaunchShell (const struct account* acct, const char* arg);
@@ -35,10 +36,15 @@ void RunSession (const struct account* acct)
     psigfunc_t termsig = signal (SIGTERM, QuitSignal);
     psigfunc_t quitsig = signal (SIGQUIT, QuitSignal);
     psigfunc_t alrmsig = signal (SIGALRM, AlarmSignal);
+    signal (SIGCHLD, ChildSignal);
+
+    sigset_t smask;
+    sigprocmask (SIG_UNBLOCK, NULL, &smask);
 
     while (shellpid || xpid) {
+	sigsuspend (&smask);
 	int chldstat = 0;
-	pid_t cpid = wait (&chldstat);
+	pid_t cpid = waitpid (-1, &chldstat, WNOHANG);
 	if (cpid == shellpid || cpid == xpid) {
 	    if (cpid == shellpid)
 		shellpid = 0;
@@ -56,6 +62,7 @@ void RunSession (const struct account* acct)
     }
 
     // Restore main signal handlers
+    signal (SIGCHLD, SIG_IGN);
     signal (SIGALRM, alrmsig);
     signal (SIGQUIT, termsig);
     signal (SIGTERM, quitsig);
@@ -63,14 +70,16 @@ void RunSession (const struct account* acct)
     alarm (0);
 }
 
-static void QuitSignal (int sig __attribute__((unused)))
+static void QuitSignal (int sig)
 {
+    syslog (LOG_INFO, "shutting down session on signal %d", sig);
     _quitting = true;
     alarm (KILL_TIMEOUT);
 }
 
 static void AlarmSignal (int sig __attribute__((unused)))
 {
+    syslog (LOG_WARNING, "session hung; switching to SIGKILL");
     _quitting = true;
     _killsig = SIGKILL;
 }
@@ -78,6 +87,10 @@ static void AlarmSignal (int sig __attribute__((unused)))
 static void XreadySignal (int sig __attribute__((unused)))
 {
     _xready = true;
+}
+
+static void ChildSignal (int sig __attribute__((unused)))
+{
 }
 
 static void BecomeUser (const struct account* acct)
