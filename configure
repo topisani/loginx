@@ -21,10 +21,10 @@ seds=[s/^#\(DEBUG\)/\1/]
 }';
 
 # Header files
-HEADERS=""
+HEADERS="security/pam_appl.h ncurses.h"
 
 # Libraries
-LIBS=""
+LIBS="pam ncurses"
 
 # First pair is used if nothing matches
 PROGS="CC=gcc CXX=g++ LD=ld AR=ar RANLIB=ranlib RANLIB=touch INSTALL=install DOXYGEN=doxygen"

@@ -12,8 +12,8 @@ CC		:= @CC@
 LD		:= @CC@
 INSTALL		:= @INSTALL@
 
-INSTALLEXE	:= ${INSTALL} -D -p -m 700 -s
-INSTALLDATA	:= ${INSTALL} -D -p -m 644
+INSTALLEXE	:= ${INSTALL} -D -p -m 700 -o root -g root -s
+INSTALLDATA	:= ${INSTALL} -D -p -m 644 -o root -g root
 
 ################ Destination #########################################
 
@@ -28,7 +28,7 @@ WARNOPTS	:= -Wall -Wextra -Wredundant-decls -Wshadow @SYSWARNS@
 CFLAGS		:= ${WARNOPTS} @CUSTOMINCDIR@ -march=native -std=c99 \
 		-ffunction-sections -fdata-sections
 LDFLAGS		:= @CUSTOMLIBDIR@
-LIBS		:= -lpam -lncurses
+LIBS		:= @libpam@ @libncurses@
 ifdef DEBUG
     CFLAGS	+= -O0 -g
 else
