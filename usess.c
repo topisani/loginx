@@ -1,5 +1,6 @@
 #include "defs.h"
 #include <sys/wait.h>
+#include <utmp.h>
 
 //----------------------------------------------------------------------
 
@@ -29,6 +30,10 @@ void RunSession (const struct account* acct)
     if (0 == access (xinitrcPath, R_OK))
 	xpid = LaunchX (acct);
     pid_t shellpid = LaunchShell (acct, xpid ? ".xinitrc" : NULL);
+    if (!shellpid)
+	return;
+
+    WriteUtmp (acct, shellpid, USER_PROCESS);
 
     // Set session signal handlers that quit
     typedef void (*psigfunc_t)(int);
@@ -68,6 +73,8 @@ void RunSession (const struct account* acct)
     signal (SIGTERM, quitsig);
     signal (SIGHUP, hupsig);
     alarm (0);
+
+    WriteUtmp (acct, shellpid, DEAD_PROCESS);
 }
 
 static void QuitSignal (int sig)

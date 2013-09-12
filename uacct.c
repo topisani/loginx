@@ -102,13 +102,17 @@ void WriteLastlog (const struct account* acct)
     close (fd);
 }
 
-void WriteUtmp (const struct account* acct)
+void WriteUtmp (const struct account* acct, pid_t pid, short uttype)
 {
     struct utmp ut;
     memset (&ut, 0, sizeof(ut));
-    ut.ut_type = LOGIN_PROCESS;
-    ut.ut_pid = getpid();
-    strncpy (ut.ut_line, _ttypath, sizeof(ut.ut_line)-1);
+    ut.ut_type = uttype;
+    ut.ut_pid = pid;
+    const char* ttydev = strrchr(_ttypath, '/');
+    if (!ttydev++)
+	ttydev = _ttypath;
+    strncpy (ut.ut_line, ttydev, sizeof(ut.ut_line)-1);
+    strncpy (ut.ut_id, ttydev, sizeof(ut.ut_id));	// ut_id is not a 0-terminated string
     strncpy (ut.ut_user, acct->name, sizeof(ut.ut_user)-1);
     gethostname (ut.ut_host, sizeof(ut.ut_host)-1);
     struct timeval tv;
@@ -116,12 +120,15 @@ void WriteUtmp (const struct account* acct)
     ut.ut_tv.tv_sec = tv.tv_sec;
     ut.ut_tv.tv_usec = tv.tv_usec;
 
-    utmpname (_PATH_UTMP);
+    if (0 != utmpname (_PATH_UTMP))
+	syslog (LOG_ERR, "unable to open " _PATH_UTMP ": %m");
     setutent();
-    pututline (&ut);
+    if (!pututline (&ut))
+	syslog (LOG_ERR, "unable to write utmp record: %m");
     endutent();
 
-    updwtmp (_PATH_WTMP, &ut);
+    if (ut.ut_type != DEAD_PROCESS)
+	updwtmp (_PATH_WTMP, &ut);
 }
 
 void WriteMotd (const struct account* acct)

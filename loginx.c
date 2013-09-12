@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <sys/kd.h>
 #include <fcntl.h>
+#include <utmp.h>
 
 //----------------------------------------------------------------------
 
@@ -114,7 +115,7 @@ int main (int argc, const char* const* argv)
 	return (EXIT_FAILURE);
 
     WriteLastlog (al[ali]);
-    WriteUtmp (al[ali]);
+    WriteUtmp (al[ali], getpid(), LOGIN_PROCESS);
     WriteMotd (al[ali]);
     if (!al[ali]->uid)	// The login strings are copied from util-linux login to allow log grepping compatibility
 	syslog (LOG_NOTICE, "ROOT LOGIN ON %s", ttyname);
@@ -123,6 +124,7 @@ int main (int argc, const char* const* argv)
 
     RunSession (al[ali]);
 
+    WriteUtmp (al[ali], getpid(), DEAD_PROCESS);
     PamLogout();
     PamClose();
     ResetTerminal();
