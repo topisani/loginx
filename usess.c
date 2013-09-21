@@ -149,9 +149,11 @@ static pid_t LaunchX (const struct account* acct)
     signal (SIGUSR1, SIG_IGN);	// This tells the X server to send SIGUSR1 to parent when ready
     sigprocmask (SIG_SETMASK, &orig, NULL);	// Now unblock SIGUSR1
 
-    const char* argv[] = { "X", ":0", "-nolisten", "tcp", "-auth", ".config/Xauthority", NULL };
-    if (0 != access (argv[5], R_OK))
-	argv[4] = NULL;
+    char vtname[] = "vt01";
+    vtname[3] = _ttypath[strlen(_ttypath)-1];
+    const char* argv[] = { "X", ":0", vtname, "-nolisten", "tcp", "-auth", ".config/Xauthority", NULL };
+    if (0 != access (argv[6], R_OK))
+	argv[5] = NULL;
     execvp ("/usr/bin/X", (char* const*) argv);
     ExitWithError ("execvp");
 }
