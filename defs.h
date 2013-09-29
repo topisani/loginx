@@ -54,7 +54,6 @@ unsigned NAccounts (void);
 void ReadLastlog (void);
 void WriteLastlog (const struct account* acct);
 void WriteUtmp (const struct account* acct, pid_t pid, short uttype);
-void WriteMotd (const struct account* acct);
 
 // ui.c
 unsigned LoginBox (acclist_t al, char* password);

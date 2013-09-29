@@ -104,6 +104,8 @@ unsigned LoginBox (acclist_t al, char* password)
 
 void ClearScreen (void)
 {
+    if (!isatty (STDOUT_FILENO))
+	return;
     // Clear the screen; [r resets scroll region, [H homes cursor, [J erases
     #define RESET_SCREEN_CMD "\e[r\e[H\e[J"
     write (STDOUT_FILENO, RESET_SCREEN_CMD, sizeof(RESET_SCREEN_CMD));

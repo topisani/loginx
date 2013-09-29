@@ -1,6 +1,8 @@
 #include "defs.h"
+#include <sys/sendfile.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <time.h>
 #include <utmp.h>
 
 //----------------------------------------------------------------------
@@ -10,6 +12,8 @@ static void AlarmSignal (int sig);
 static void XreadySignal (int sig);
 static void ChildSignal (int sig);
 static void BecomeUser (const struct account* acct);
+static void RedirectToLog (void);
+static void WriteMotd (const struct account* acct);
 static pid_t LaunchX (const struct account* acct);
 static pid_t LaunchShell (const struct account* acct, const char* arg);
 
@@ -132,6 +136,21 @@ static void RedirectToLog (void)
     close (fd);
 }
 
+static void WriteMotd (const struct account* acct)
+{
+    ClearScreen();
+    int fd = open ("/etc/motd", O_RDONLY);
+    if (fd < 0)
+	return;
+    struct stat st;
+    if (fstat (fd, &st) == 0 && S_ISREG(st.st_mode))
+	sendfile (STDOUT_FILENO, fd, NULL, st.st_size);
+    close (fd);
+    const time_t lltime = acct->ltime;
+    printf ("Last login: %s\n", ctime(&lltime));
+    fflush (stdout);
+}
+
 static pid_t LaunchX (const struct account* acct)
 {
     signal (SIGUSR1, XreadySignal);
@@ -167,9 +186,9 @@ static pid_t LaunchX (const struct account* acct)
 
     char vtname[] = "vt01";
     vtname[3] = _ttypath[strlen(_ttypath)-1];
-    const char* argv[] = { "X", ":0", vtname, "-nolisten", "tcp", "-auth", ".config/Xauthority", NULL };
-    if (0 != access (argv[6], R_OK))
-	argv[5] = NULL;
+    const char* argv[] = { "X", ":0", vtname, "-quiet", "-nolisten", "tcp", "-auth", ".config/Xauthority", NULL };
+    if (0 != access (argv[7], R_OK))
+	argv[6] = NULL;
     execvp ("/usr/bin/X", (char* const*) argv);
     ExitWithError ("execvp");
 }
@@ -190,6 +209,7 @@ static pid_t LaunchShell (const struct account* acct, const char* arg)
 	setenv ("XAUTHORITY", xauthpath, true);
 	RedirectToLog();
     }
+    WriteMotd (acct);
 
     char shname [16];	// argv[0] of a login shell is "-bash"
     const char* shbasename = strrchr(acct->shell, '/');

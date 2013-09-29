@@ -7,9 +7,8 @@
 #include <pwd.h>
 #include <grp.h>
 #include <utmp.h>
-#include <fcntl.h>
 #include <time.h>
-#include <sys/sendfile.h>
+#include <fcntl.h>
 
 static struct account** _accts = NULL;
 static unsigned _naccts = 0;
@@ -129,19 +128,4 @@ void WriteUtmp (const struct account* acct, pid_t pid, short uttype)
 
     if (ut.ut_type != DEAD_PROCESS)
 	updwtmp (_PATH_WTMP, &ut);
-}
-
-void WriteMotd (const struct account* acct)
-{
-    ClearScreen();
-    int fd = open ("/etc/motd", O_RDONLY);
-    if (fd < 0)
-	return;
-    struct stat st;
-    if (fstat (fd, &st) == 0 && S_ISREG(st.st_mode))
-	sendfile (STDOUT_FILENO, fd, NULL, st.st_size);
-    close (fd);
-    const time_t lltime = acct->ltime;
-    printf ("Last login: %s\n", ctime(&lltime));
-    fflush (stdout);
 }

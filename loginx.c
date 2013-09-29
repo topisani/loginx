@@ -116,7 +116,6 @@ int main (int argc, const char* const* argv)
 
     WriteLastlog (al[ali]);
     WriteUtmp (al[ali], getpid(), LOGIN_PROCESS);
-    WriteMotd (al[ali]);
     if (!al[ali]->uid)	// The login strings are copied from util-linux login to allow log grepping compatibility
 	syslog (LOG_NOTICE, "ROOT LOGIN ON %s", ttyname);
     else
