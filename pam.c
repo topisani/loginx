@@ -131,6 +131,7 @@ static int xconv (int num_msg, const struct pam_message** msgm, struct pam_respo
 		    }
 		}
 		free(reply);
+		syslog (LOG_ERR, "unhandled PAM conversation style %d: %s", msgm[i]->msg_style, msgm[i]->msg);
 		return (PAM_CONV_ERR);
 	}
     }

@@ -1,5 +1,6 @@
 #include "defs.h"
 #include <sys/wait.h>
+#include <fcntl.h>
 #include <utmp.h>
 
 //----------------------------------------------------------------------
@@ -118,6 +119,19 @@ static void BecomeUser (const struct account* acct)
 	perror ("chdir");
 }
 
+static void RedirectToLog (void)
+{
+    close (STDIN_FILENO);
+    if (STDIN_FILENO != open (_PATH_DEVNULL, O_RDONLY))
+	return;
+    int fd = open (PATH_SESSION_LOG, O_WRONLY| O_CREAT| O_APPEND, 0600);
+    if (fd < 0)
+	return;
+    dup2 (fd, STDOUT_FILENO);
+    dup2 (fd, STDERR_FILENO);
+    close (fd);
+}
+
 static pid_t LaunchX (const struct account* acct)
 {
     signal (SIGUSR1, XreadySignal);
@@ -143,6 +157,8 @@ static pid_t LaunchX (const struct account* acct)
     } else if (pid < 0)
 	ExitWithError ("fork");
     BecomeUser (acct);
+    unlink (PATH_SESSION_LOG);
+    RedirectToLog();
 
     signal (SIGTTIN, SIG_IGN);	// Ignore server reads and writes
     signal (SIGTTOU, SIG_IGN);
@@ -172,6 +188,7 @@ static pid_t LaunchShell (const struct account* acct, const char* arg)
 	char xauthpath [PATH_MAX];
 	snprintf (xauthpath, sizeof(xauthpath), "%s/.config/Xauthority", acct->dir);
 	setenv ("XAUTHORITY", xauthpath, true);
+	RedirectToLog();
     }
 
     char shname [16];	// argv[0] of a login shell is "-bash"
