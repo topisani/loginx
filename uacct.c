@@ -93,7 +93,7 @@ void WriteLastlog (const struct account* acct)
     struct lastlog ll;
     memset (&ll, 0, sizeof(ll));
     ll.ll_time = time(NULL);
-    strncpy (ll.ll_line, _ttypath, sizeof(ll.ll_line)-1);
+    strncpy (ll.ll_line, _ttypath+strlen("/dev/"), sizeof(ll.ll_line)-1);
     gethostname (ll.ll_host, sizeof(ll.ll_host)-1);
 
     pwrite (fd, &ll, sizeof(ll), acct->uid*sizeof(ll));
