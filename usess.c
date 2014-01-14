@@ -80,6 +80,8 @@ void RunSession (const struct account* acct)
     alarm (0);
 
     WriteUtmp (acct, shellpid, DEAD_PROCESS);
+    // Leave the user directory to allow it to be unmounted, if it is remote
+    chdir ("/");
 }
 
 static void QuitSignal (int sig)
