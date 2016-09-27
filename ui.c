@@ -16,8 +16,8 @@
 enum {
     MAX_PROMPT_WIDTH = sizeof(PASSWORD_PROMPT)-1,
     MAX_INPUT_WIDTH = sizeof(PASSWORD_MASKSTR),
-    LOGIN_WINDOW_WIDTH = 1+1+MAX_PROMPT_WIDTH+1+MAX_INPUT_WIDTH+1+1,
-    LOGIN_WINDOW_HEIGHT = 1+2+1
+    LOGIN_WINDOW_WIDTH = 1+2+MAX_PROMPT_WIDTH+4+MAX_INPUT_WIDTH+2+1,
+    LOGIN_WINDOW_HEIGHT = 1+4+1
 };
 
 //----------------------------------------------------------------------
@@ -38,8 +38,7 @@ static void CursesInit (void)
     atexit (CursesCleanup);
     start_color();
     use_default_colors();
-    init_pair (1, COLOR_GREEN, COLOR_DEFAULT);
-    init_pair (2, COLOR_CYAN, COLOR_DEFAULT);
+    init_pair (1, COLOR_BLACK, COLOR_WHITE);
     noecho();
 }
 
@@ -78,12 +77,12 @@ unsigned LoginBox (acclist_t al, char* password)
     do {
 	wattrset (_loginbox, COLOR_PAIR(1));
 	werase (_loginbox);
-	box (_loginbox, 0, 0);
-	mvwaddstr (_loginbox, 1,2, USERNAME_PROMPT);
-	mvwaddstr (_loginbox, 2,2, PASSWORD_PROMPT);
-	wattrset (_loginbox, COLOR_PAIR(2));
-	mvwaddnstr (_loginbox, 1,2+sizeof(USERNAME_PROMPT), al[ali]->name, MAX_INPUT_WIDTH);
-	mvwaddnstr (_loginbox, 2,2+sizeof(PASSWORD_PROMPT), PASSWORD_MASKSTR, min(strlen(PASSWORD_MASKSTR),pwlen));
+	//box (_loginbox, 0, 0);
+	mvwaddstr (_loginbox, 2,3, USERNAME_PROMPT);
+	mvwaddstr (_loginbox, 3,3, PASSWORD_PROMPT);
+	wattrset (_loginbox, COLOR_PAIR(1));
+	mvwaddnstr (_loginbox, 2,3+sizeof(USERNAME_PROMPT), al[ali]->name, MAX_INPUT_WIDTH);
+	mvwaddnstr (_loginbox, 3,3+sizeof(PASSWORD_PROMPT), PASSWORD_MASKSTR, min(strlen(PASSWORD_MASKSTR),pwlen));
 	wrefresh (_loginbox);
 	key = wgetch (_loginbox);
 	if (isprint(key) && pwlen < MAX_PW_LEN-1)
